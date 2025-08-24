@@ -220,7 +220,7 @@ function useHotkeys(textareaRef, handlers) {
   }, [textareaRef, handlers]);
 }
 
-export default function UnicodeMarkdownEditor() {
+export default function UnicodeEditor() {
   const [value, setValue] = useState("");
   const textareaRef = useRef(null);
 
@@ -249,7 +249,7 @@ export default function UnicodeMarkdownEditor() {
       <div className="flex-1 mx-auto max-w-5xl px-4 py-8 w-full flex flex-col">
         <header className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Unicode Markdown-like Editor</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Unicode Editor</h1>
             <p className="text-sm text-neutral-600">Type plain text. Select text and click a style to convert or toggle Unicode equivalents.</p>
           </div>
           <div className="flex gap-2 items-center">
