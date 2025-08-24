@@ -222,6 +222,7 @@ function useHotkeys(textareaRef, handlers) {
 
 export default function UnicodeEditor() {
   const [value, setValue] = useState("");
+  const [copySuccess, setCopySuccess] = useState(false);
   const textareaRef = useRef(null);
 
   useHotkeys(textareaRef, {
@@ -236,7 +237,10 @@ export default function UnicodeEditor() {
   }
 
   function handleCopy() {
-    navigator.clipboard.writeText(value).catch(() => {});
+    navigator.clipboard.writeText(value).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }).catch(() => {});
   }
 
   function handleClear() {
@@ -269,19 +273,27 @@ export default function UnicodeEditor() {
         </header>
 
         {/* Editor */}
-        <div className="mt-4 flex-1 flex flex-col">
+        <div className="mt-4 flex-1 flex flex-col relative">
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-neutral-700">Editor</label>
-            <button
-              onClick={handleCopy}
-              className="rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors"
-              title="Copy Unicode"
-            >
+          </div>
+          
+          {/* Copy button positioned on top right of editor */}
+          <button
+            onClick={handleCopy}
+            className="absolute top-2 right-2 z-10 rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors bg-white/80 backdrop-blur-sm border border-neutral-200"
+            title="Copy Unicode"
+          >
+            {copySuccess ? (
+              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-            </button>
-          </div>
+            )}
+          </button>
           
           {/* Style buttons above editor */}
           <div className="flex gap-2 mb-3">
