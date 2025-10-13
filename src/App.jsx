@@ -1,4 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
+import { 
+  MdFormatBold, 
+  MdFormatItalic, 
+  MdFormatListBulleted, 
+  MdFormatListNumbered,
+  MdContentCopy,
+  MdCheck
+} from "react-icons/md";
+import { FaGithub } from "react-icons/fa";
 
 // Unicode ranges
 const RANGE = {
@@ -200,12 +209,141 @@ function applyToSelection(textarea, styleKey, setValue) {
   }
 }
 
+// ---------- List management helpers ---------- //
+function getLineRange(text, selectionStart, selectionEnd) {
+  // Find the start and end of the lines that contain the selection
+  let lineStart = selectionStart;
+  let lineEnd = selectionEnd;
+  
+  // Move lineStart to the beginning of the line
+  while (lineStart > 0 && text[lineStart - 1] !== '\n') {
+    lineStart--;
+  }
+  
+  // Move lineEnd to the end of the line (or end of text)
+  while (lineEnd < text.length && text[lineEnd] !== '\n') {
+    lineEnd++;
+  }
+  
+  return { lineStart, lineEnd };
+}
+
+function isLineWithBullet(line) {
+  return /^\s*•\s/.test(line);
+}
+
+function isLineWithNumber(line) {
+  return /^\s*\d+\.\s/.test(line);
+}
+
+function getNumberFromLine(line) {
+  const match = line.match(/^\s*(\d+)\.\s/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function addBulletToLine(line) {
+  // If line already has bullet, remove it
+  if (isLineWithBullet(line)) {
+    return line.replace(/^\s*•\s/, '');
+  }
+  // If line has number, replace with bullet
+  if (isLineWithNumber(line)) {
+    return line.replace(/^\s*\d+\.\s/, '• ');
+  }
+  // Add bullet to line
+  const indent = line.match(/^\s*/)?.[0] || '';
+  const content = line.slice(indent.length);
+  return content ? `${indent}• ${content}` : `${indent}• `;
+}
+
+function addNumberToLine(line, number) {
+  // If line already has number, remove it
+  if (isLineWithNumber(line)) {
+    return line.replace(/^\s*\d+\.\s/, '');
+  }
+  // If line has bullet, replace with number
+  if (isLineWithBullet(line)) {
+    return line.replace(/^\s*•\s/, `${number}. `);
+  }
+  // Add number to line
+  const indent = line.match(/^\s*/)?.[0] || '';
+  const content = line.slice(indent.length);
+  return content ? `${indent}${number}. ${content}` : `${indent}${number}. `;
+}
+
+function toggleListOnSelection(textarea, listType, setValue, setListMode, setCurrentNumber) {
+  const { selectionStart, selectionEnd, value } = textarea;
+  const { lineStart, lineEnd } = getLineRange(value, selectionStart, selectionEnd);
+  
+  const before = value.slice(0, lineStart);
+  const selectedLines = value.slice(lineStart, lineEnd);
+  const after = value.slice(lineEnd);
+  
+  const lines = selectedLines.split('\n');
+  let processedLines;
+  let newListMode = "none";
+  
+  if (listType === "bullets") {
+    // Check if any line has bullets - if so, remove all bullets, otherwise add bullets
+    const hasBullets = lines.some(line => isLineWithBullet(line));
+    processedLines = lines.map(line => addBulletToLine(line));
+    newListMode = hasBullets ? "none" : "bullets";
+  } else if (listType === "numbers") {
+    // Check if any line has numbers - if so, remove all numbers, otherwise add numbers
+    const hasNumbers = lines.some(line => isLineWithNumber(line));
+    let currentNum = 1;
+    processedLines = lines.map(line => {
+      if (line.trim() === '') return line; // Don't number empty lines
+      const result = addNumberToLine(line, currentNum);
+      if (!hasNumbers && result !== line) currentNum++;
+      return result;
+    });
+    newListMode = hasNumbers ? "none" : "numbers";
+    setCurrentNumber(currentNum);
+  }
+  
+  const newContent = before + processedLines.join('\n') + after;
+  setValue(newContent);
+  setListMode(newListMode);
+  
+  // Restore selection
+  const newSelectionStart = lineStart;
+  const newSelectionEnd = lineStart + processedLines.join('\n').length;
+  requestAnimationFrame(() => {
+    textarea.focus();
+    textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
+  });
+}
+
 function useHotkeys(textareaRef, handlers) {
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     const onKey = (e) => {
       const mod = e.metaKey || e.ctrlKey;
+      const shift = e.shiftKey;
+      
+      // Handle list shortcuts
+      if (mod && shift && e.key === '8') {
+        e.preventDefault();
+        handlers["bullets"]?.();
+        return;
+      }
+      if (mod && shift && e.key === '7') {
+        e.preventDefault();
+        handlers["numbers"]?.();
+        return;
+      }
+      
+      // Handle Enter key for list continuation
+      if (e.key === "Enter") {
+        const handled = handlers["enter"]?.(e);
+        if (handled) {
+          e.preventDefault();
+        }
+        return;
+      }
+      
       if (!mod) return;
       if (e.key.toLowerCase() === "b") {
         e.preventDefault();
@@ -223,17 +361,128 @@ function useHotkeys(textareaRef, handlers) {
 export default function UnicodeEditor() {
   const [value, setValue] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
+  const [listMode, setListMode] = useState("none"); // "none", "bullets", "numbers"
+  const [currentNumber, setCurrentNumber] = useState(1);
   const textareaRef = useRef(null);
 
   useHotkeys(textareaRef, {
     bold: () => handleStyleClick("bold"),
     italic: () => handleStyleClick("italic"),
+    bullets: () => handleListClick("bullets"),
+    numbers: () => handleListClick("numbers"),
+    enter: handleEnterKey,
   });
 
   function handleStyleClick(key) {
     const ta = textareaRef.current;
     if (!ta) return;
     applyToSelection(ta, key, setValue);
+  }
+
+  function handleListClick(listType) {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    toggleListOnSelection(ta, listType, setValue, setListMode, setCurrentNumber);
+  }
+
+  function handleEnterKey(e) {
+    const ta = textareaRef.current;
+    if (!ta) return false;
+    
+    const { selectionStart, value } = ta;
+    
+    // Find the current line
+    let lineStart = selectionStart;
+    while (lineStart > 0 && value[lineStart - 1] !== '\n') {
+      lineStart--;
+    }
+    
+    const currentLine = value.slice(lineStart, selectionStart);
+    
+    // Check if current line has a bullet or number
+    if (isLineWithBullet(currentLine)) {
+      // If the line only has the bullet (no content), remove the bullet and exit list mode
+      if (/^\s*•\s*$/.test(currentLine)) {
+        const before = value.slice(0, lineStart);
+        const after = value.slice(selectionStart);
+        setValue(before.trimEnd() + '\n' + after);
+        setListMode("none");
+        requestAnimationFrame(() => {
+          ta.setSelectionRange(lineStart + 1, lineStart + 1);
+        });
+        return true;
+      }
+      
+      // Continue with bullet
+      const indent = currentLine.match(/^\s*/)?.[0] || '';
+      const newLine = `\n${indent}• `;
+      const before = value.slice(0, selectionStart);
+      const after = value.slice(selectionStart);
+      setValue(before + newLine + after);
+      requestAnimationFrame(() => {
+        const newPos = selectionStart + newLine.length;
+        ta.setSelectionRange(newPos, newPos);
+      });
+      return true;
+    }
+    
+    if (isLineWithNumber(currentLine)) {
+      // If the line only has the number (no content), remove the number and exit list mode
+      if (/^\s*\d+\.\s*$/.test(currentLine)) {
+        const before = value.slice(0, lineStart);
+        const after = value.slice(selectionStart);
+        setValue(before.trimEnd() + '\n' + after);
+        setListMode("none");
+        setCurrentNumber(1);
+        requestAnimationFrame(() => {
+          ta.setSelectionRange(lineStart + 1, lineStart + 1);
+        });
+        return true;
+      }
+      
+      // Continue with next number
+      const number = getNumberFromLine(currentLine);
+      const indent = currentLine.match(/^\s*/)?.[0] || '';
+      const nextNumber = (number || 0) + 1;
+      const newLine = `\n${indent}${nextNumber}. `;
+      const before = value.slice(0, selectionStart);
+      const after = value.slice(selectionStart);
+      setValue(before + newLine + after);
+      setCurrentNumber(nextNumber + 1);
+      requestAnimationFrame(() => {
+        const newPos = selectionStart + newLine.length;
+        ta.setSelectionRange(newPos, newPos);
+      });
+      return true;
+    }
+    
+    // If we're in list mode but current line doesn't have formatting, add it
+    if (listMode === "bullets") {
+      const newLine = '\n• ';
+      const before = value.slice(0, selectionStart);
+      const after = value.slice(selectionStart);
+      setValue(before + newLine + after);
+      requestAnimationFrame(() => {
+        const newPos = selectionStart + newLine.length;
+        ta.setSelectionRange(newPos, newPos);
+      });
+      return true;
+    }
+    
+    if (listMode === "numbers") {
+      const newLine = `\n${currentNumber}. `;
+      const before = value.slice(0, selectionStart);
+      const after = value.slice(selectionStart);
+      setValue(before + newLine + after);
+      setCurrentNumber(currentNumber + 1);
+      requestAnimationFrame(() => {
+        const newPos = selectionStart + newLine.length;
+        ta.setSelectionRange(newPos, newPos);
+      });
+      return true;
+    }
+    
+    return false; // Let default Enter behavior happen
   }
 
   function handleCopy() {
@@ -263,9 +512,7 @@ export default function UnicodeEditor() {
               rel="noopener noreferrer"
               className="rounded-lg px-4 py-2.5 shadow-lg bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800 active:scale-[.98] flex items-center gap-2 transition-all duration-200 border border-gray-600/20"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
+              <FaGithub className="w-4 h-4" />
               GitHub
             </a>
             <span className="text-xs text-neutral-500">⭐ Don't forget to give a star!</span>
@@ -285,13 +532,9 @@ export default function UnicodeEditor() {
             title="Copy Unicode"
           >
             {copySuccess ? (
-              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <MdCheck className="w-4 h-4 text-green-600" />
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
+              <MdContentCopy className="w-4 h-4" />
             )}
           </button>
           
@@ -302,19 +545,40 @@ export default function UnicodeEditor() {
               className="rounded-md p-2.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
               title="Bold (Ctrl/Cmd+B)"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
-                <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
-              </svg>
+              <MdFormatBold className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleStyleClick("italic")}
               className="rounded-md p-2.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
               title="Italic (Ctrl/Cmd+I)"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M19 4h-9M14 20H5M15 4 9 20"/>
-              </svg>
+              <MdFormatItalic className="w-5 h-5" />
+            </button>
+            
+            {/* Separator */}
+            <div className="w-px h-10 bg-neutral-200 mx-2 self-center"></div>
+            
+            <button
+              onClick={() => handleListClick("bullets")}
+              className={`rounded-md p-2.5 transition-colors border ${
+                listMode === "bullets" 
+                  ? "bg-neutral-800 text-white border-neutral-800" 
+                  : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 border-neutral-200 hover:border-neutral-300"
+              }`}
+              title="Bullet List (Ctrl/Cmd+Shift+8)"
+            >
+              <MdFormatListBulleted className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => handleListClick("numbers")}
+              className={`rounded-md p-2.5 transition-colors border ${
+                listMode === "numbers" 
+                  ? "bg-neutral-800 text-white border-neutral-800" 
+                  : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 border-neutral-200 hover:border-neutral-300"
+              }`}
+              title="Numbered List (Ctrl/Cmd+Shift+7)"
+            >
+              <MdFormatListNumbered className="w-5 h-5" />
             </button>
           </div>
           
