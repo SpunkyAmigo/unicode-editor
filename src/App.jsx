@@ -497,6 +497,10 @@ export default function UnicodeEditor() {
     textareaRef.current?.focus();
   }
 
+  // Character and word count logic
+  const characterCount = value.length;
+  const wordCount = value.trim() === "" ? 0 : value.trim().split(/\s+/).length;
+
   return (
     <div className="min-h-screen w-full bg-neutral-50 text-neutral-900 flex flex-col">
       <div className="flex-1 mx-auto max-w-5xl px-4 py-8 w-full flex flex-col">
@@ -524,43 +528,34 @@ export default function UnicodeEditor() {
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-neutral-700">Editor</label>
           </div>
-          
-          {/* Copy button positioned on top right of editor */}
-          <button
-            onClick={handleCopy}
-            className="absolute top-2 right-2 z-10 rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors bg-white/80 backdrop-blur-sm border border-neutral-200"
-            title="Copy Unicode"
-          >
-            {copySuccess ? (
-              <MdCheck className="w-4 h-4 text-green-600" />
-            ) : (
-              <MdContentCopy className="w-4 h-4" />
-            )}
-          </button>
-          
-          {/* Style buttons above editor */}
-          <div className="flex gap-2 mb-3">
+          {/* Toolbar: compact, neat, all controls in one row */}
+          <div className="mb-3 flex items-center gap-2 px-2 py-1 rounded-md bg-white border border-neutral-200 shadow-sm">
+            {/* Character and word count */}
+            <span className="text-xs text-neutral-500 px-2">Chars: <strong>{characterCount}</strong></span>
+            <span className="text-xs text-neutral-500 px-2">Words: <strong>{wordCount}</strong></span>
+            {/* Separator */}
+            <span className="mx-2 h-5 w-px bg-neutral-200" />
+            {/* Style buttons */}
             <button
               onClick={() => handleStyleClick("bold")}
-              className="rounded-md p-2.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
+              className="rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
               title="Bold (Ctrl/Cmd+B)"
             >
               <MdFormatBold className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleStyleClick("italic")}
-              className="rounded-md p-2.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
+              className="rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
               title="Italic (Ctrl/Cmd+I)"
             >
               <MdFormatItalic className="w-5 h-5" />
             </button>
-            
             {/* Separator */}
-            <div className="w-px h-10 bg-neutral-200 mx-2 self-center"></div>
-            
+            <span className="mx-2 h-5 w-px bg-neutral-200" />
+            {/* List buttons */}
             <button
               onClick={() => handleListClick("bullets")}
-              className={`rounded-md p-2.5 transition-colors border ${
+              className={`rounded-md p-2 transition-colors border ${
                 listMode === "bullets" 
                   ? "bg-neutral-800 text-white border-neutral-800" 
                   : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 border-neutral-200 hover:border-neutral-300"
@@ -571,7 +566,7 @@ export default function UnicodeEditor() {
             </button>
             <button
               onClick={() => handleListClick("numbers")}
-              className={`rounded-md p-2.5 transition-colors border ${
+              className={`rounded-md p-2 transition-colors border ${
                 listMode === "numbers" 
                   ? "bg-neutral-800 text-white border-neutral-800" 
                   : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 border-neutral-200 hover:border-neutral-300"
@@ -580,8 +575,23 @@ export default function UnicodeEditor() {
             >
               <MdFormatListNumbered className="w-5 h-5" />
             </button>
+            {/* Separator */}
+            <span className="mx-2 h-5 w-px bg-neutral-200" />
+            {/* Copy button */}
+            <button
+              onClick={handleCopy}
+              className="rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
+              title="Copy Unicode"
+              style={{ minWidth: 36 }}
+            >
+              {copySuccess ? (
+                <MdCheck className="w-4 h-4 text-green-600" />
+              ) : (
+                <MdContentCopy className="w-4 h-4" />
+              )}
+            </button>
           </div>
-          
+          {/* Editor textarea */}
           <textarea
             ref={textareaRef}
             value={value}
