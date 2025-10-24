@@ -7,7 +7,7 @@ import {
   MdContentCopy,
   MdCheck
 } from "react-icons/md";
-import { FaGithub } from "react-icons/fa";
+import { FaGithub, FaMoon, FaSun } from "react-icons/fa"; // <-- Added icons
 
 // Unicode ranges
 const RANGE = {
@@ -361,9 +361,25 @@ function useHotkeys(textareaRef, handlers) {
 export default function UnicodeEditor() {
   const [value, setValue] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
-  const [listMode, setListMode] = useState("none"); // "none", "bullets", "numbers"
+  const [listMode, setListMode] = useState("none");
   const [currentNumber, setCurrentNumber] = useState(1);
+  const [darkMode, setDarkMode] = useState(false); // <-- NEW
+
   const textareaRef = useRef(null);
+
+  // --- Auto-sync with system theme ---
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setDarkMode(mq.matches);
+    const handleChange = (e) => setDarkMode(e.matches);
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, []);
+
+  // Apply/remove dark mode class on <html> or local container
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+  }, [darkMode]);
 
   useHotkeys(textareaRef, {
     bold: () => handleStyleClick("bold"),
@@ -502,85 +518,121 @@ export default function UnicodeEditor() {
   const wordCount = value.trim() === "" ? 0 : value.trim().split(/\s+/).length;
 
   return (
-    <div className="min-h-screen w-full bg-neutral-50 text-neutral-900 flex flex-col">
+    <div className={`min-h-screen w-full flex flex-col transition-colors duration-300
+      ${darkMode ? "bg-neutral-950 text-neutral-100" : "bg-neutral-50 text-neutral-900"}
+    `}>
       <div className="flex-1 mx-auto max-w-5xl px-4 py-8 w-full flex flex-col">
         <header className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Unicode Editor</h1>
-            <p className="text-sm text-neutral-600">Type plain text. Select text and click a style to convert or toggle Unicode equivalents.</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              Type plain text. Select text and click a style to convert or toggle Unicode equivalents.
+            </p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <a
               href="https://github.com/SpunkyAmigo/unicode-editor"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg px-4 py-2.5 shadow-lg bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800 active:scale-[.98] flex items-center gap-2 transition-all duration-200 border border-gray-600/20"
+              className="rounded-lg px-4 py-2.5 shadow-lg bg-gradient-to-r 
+                         from-gray-800 to-gray-900 text-white hover:from-gray-700 hover:to-gray-800 
+                         active:scale-[.98] flex items-center gap-2 transition-all duration-200 
+                         border border-gray-600/20"
             >
               <FaGithub className="w-4 h-4" />
               GitHub
             </a>
-            <span className="text-xs text-neutral-500">⭐ Don't forget to give a star!</span>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              ⭐ Don't forget to give a star!
+            </span>
           </div>
         </header>
 
-        {/* Editor */}
         <div className="mt-4 flex-1 flex flex-col relative">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-neutral-700">Editor</label>
+            <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Editor
+            </label>
           </div>
-          {/* Toolbar: compact, neat, all controls in one row */}
-          <div className="mb-3 flex items-center gap-2 px-2 py-1 rounded-md bg-white border border-neutral-200 shadow-sm">
-            {/* Character and word count */}
-            <span className="text-xs text-neutral-500 px-2">Chars: <strong>{characterCount}</strong></span>
-            <span className="text-xs text-neutral-500 px-2">Words: <strong>{wordCount}</strong></span>
-            {/* Separator */}
-            <span className="mx-2 h-5 w-px bg-neutral-200" />
+
+          {/* Toolbar */}
+          <div className={`mb-3 flex items-center gap-2 px-2 py-1 rounded-md border shadow-sm transition-colors
+              ${darkMode ? "bg-neutral-900 border-neutral-700" : "bg-white border-neutral-200"}
+          `}>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400 px-2">
+              Chars: <strong>{characterCount}</strong>
+            </span>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400 px-2">
+              Words: <strong>{wordCount}</strong>
+            </span>
+            <span className="mx-2 h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+
             {/* Style buttons */}
             <button
               onClick={() => handleStyleClick("bold")}
-              className="rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
+              className={`rounded-md p-2 border transition-colors 
+                ${darkMode
+                  ? "text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white"
+                  : "text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-800 hover:border-neutral-300"
+                }`}
               title="Bold (Ctrl/Cmd+B)"
             >
               <MdFormatBold className="w-5 h-5" />
             </button>
+
             <button
               onClick={() => handleStyleClick("italic")}
-              className="rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
+              className={`rounded-md p-2 border transition-colors 
+                ${darkMode
+                  ? "text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white"
+                  : "text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-800 hover:border-neutral-300"
+                }`}
               title="Italic (Ctrl/Cmd+I)"
             >
               <MdFormatItalic className="w-5 h-5" />
             </button>
-            {/* Separator */}
-            <span className="mx-2 h-5 w-px bg-neutral-200" />
+
+            <span className="mx-2 h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+
             {/* List buttons */}
             <button
               onClick={() => handleListClick("bullets")}
-              className={`rounded-md p-2 transition-colors border ${
-                listMode === "bullets" 
-                  ? "bg-neutral-800 text-white border-neutral-800" 
-                  : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 border-neutral-200 hover:border-neutral-300"
-              }`}
+              className={`rounded-md p-2 transition-colors border 
+                ${listMode === "bullets"
+                  ? "bg-neutral-800 text-white border-neutral-800"
+                  : darkMode
+                    ? "text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white"
+                    : "text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-800 hover:border-neutral-300"
+                }`}
               title="Bullet List (Ctrl/Cmd+Shift+8)"
             >
               <MdFormatListBulleted className="w-5 h-5" />
             </button>
+
             <button
               onClick={() => handleListClick("numbers")}
-              className={`rounded-md p-2 transition-colors border ${
-                listMode === "numbers" 
-                  ? "bg-neutral-800 text-white border-neutral-800" 
-                  : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 border-neutral-200 hover:border-neutral-300"
-              }`}
+              className={`rounded-md p-2 transition-colors border 
+                ${listMode === "numbers"
+                  ? "bg-neutral-800 text-white border-neutral-800"
+                  : darkMode
+                    ? "text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white"
+                    : "text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-800 hover:border-neutral-300"
+                }`}
               title="Numbered List (Ctrl/Cmd+Shift+7)"
             >
               <MdFormatListNumbered className="w-5 h-5" />
             </button>
-            {/* Separator */}
-            <span className="mx-2 h-5 w-px bg-neutral-200" />
+
+            <span className="mx-2 h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+
             {/* Copy button */}
             <button
               onClick={handleCopy}
-              className="rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border border-neutral-200 hover:border-neutral-300"
+              className={`rounded-md p-2 border transition-colors 
+                ${darkMode
+                  ? "text-neutral-300 border-neutral-700 hover:bg-neutral-800 hover:text-white"
+                  : "text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-800 hover:border-neutral-300"
+                }`}
               title="Copy Unicode"
               style={{ minWidth: 36 }}
             >
@@ -590,17 +642,37 @@ export default function UnicodeEditor() {
                 <MdContentCopy className="w-4 h-4" />
               )}
             </button>
+
+            {/* Dark mode toggle */}
+            <span className="mx-2 h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`rounded-md p-2 border transition-colors 
+                ${darkMode
+                  ? "text-yellow-400 border-neutral-700 hover:bg-neutral-800"
+                  : "text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-800 hover:border-neutral-300"
+                }`}
+              title="Toggle Dark Mode"
+            >
+              {darkMode ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}
+            </button>
           </div>
-          {/* Editor textarea */}
+
+          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Type here... Select text or place the caret in a word and use Ctrl/Cmd+B (Bold) or Ctrl/Cmd+I (Italic)."
-            className="flex-1 w-full resize-none rounded-md border border-neutral-200 bg-white p-4 leading-relaxed shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-800"
+            placeholder="Type here..."
+            className={`flex-1 w-full resize-none rounded-md border p-4 leading-relaxed shadow-sm focus:outline-none focus:ring-2 transition-colors
+              ${darkMode
+                ? "bg-neutral-900 border-neutral-700 text-neutral-100 focus:ring-neutral-600 placeholder-neutral-500"
+                : "bg-white border-neutral-200 text-neutral-900 focus:ring-neutral-800"
+              }`}
           />
-          <p className="mt-2 text-xs text-neutral-500">
-            Tip: If no text is selected, toggling will apply to the current word. Applying the same style again toggles it. If both are on, toggling one leaves the other.
+
+          <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+            Tip: If no text is selected, toggling will apply to the current word...
           </p>
         </div>
       </div>
